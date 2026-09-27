@@ -1,4 +1,4 @@
-name: Build TH07 Android APK
+name: Build TH07 Android APK v2
 
 on:
   workflow_dispatch:
