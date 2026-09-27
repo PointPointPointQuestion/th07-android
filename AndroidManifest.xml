@@ -1,49 +1,71 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="1"
-    android:versionName="1.0"
-    android:installLocation="auto">
+name: Build TH07 Android APK
 
-    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
-    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
-    <uses-feature android:name="android.hardware.type.pc" android:required="false" />
-    <uses-permission android:name="android.permission.VIBRATE" />
+on:
+  workflow_dispatch:
 
-    <application
-        android:label="TH07 Android"
-        android:icon="@mipmap/ic_launcher"
-        android:allowBackup="true"
-        android:theme="@style/AppTheme"
-        android:enableOnBackInvokedCallback="false"
-        android:hardwareAccelerated="true">
+permissions:
+  contents: read
 
-        <activity
-            android:name=".LauncherActivity"
-            android:label="TH07 Android"
-            android:exported="true"
-            android:screenOrientation="unspecified"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
-        <activity
-            android:name=".PerfectCherryBlossom"
-            android:label="東方妖々夢 ～ Perfect Cherry Blossom"
-            android:alwaysRetainTaskState="true"
-            android:launchMode="singleInstance"
-            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            android:preferMinimalPostProcessing="true"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape">
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358" \
+            "cmake;3.22.1"
+
+      - name: Download TH07 source
+        run: |
+          git clone --recursive --depth 1 --branch reallyportable \
+            https://github.com/some100/th07.git upstream
+
+      - name: Add Android launcher
+        run: |
+          cp AndroidManifest.xml upstream/android/app/src/main/AndroidManifest.xml
+
+          mkdir -p upstream/android/app/src/main/java/com/zun/th07
+          cp LauncherActivity.java \
+            upstream/android/app/src/main/java/com/zun/th07/LauncherActivity.java
+
+          mkdir -p upstream/android/app/src/main/res/mipmap-mdpi
+          cp ic_launcher.png \
+            upstream/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+      - name: Build APK
+        working-directory: upstream/android
+        run: |
+          chmod +x gradlew
+          ./gradlew -PTH_EXTERNAL_ASSETS assembleDebug --stacktrace
+
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          cp upstream/android/app/build/outputs/apk/debug/app-debug.apk \
+            dist/TH07-Android-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TH07-Android-APK
+          path: dist/TH07-Android-debug.apk
