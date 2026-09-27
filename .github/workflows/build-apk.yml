@@ -1,0 +1,69 @@
+name: Build TH07 Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358" \
+            "cmake;3.22.1"
+
+      - name: Download TH07 source
+        run: |
+          git clone --recursive --depth 1 --branch reallyportable \
+            https://github.com/some100/th07.git upstream
+
+      - name: Add Android launcher
+        run: |
+          cp AndroidManifest.xml upstream/android/app/src/main/AndroidManifest.xml
+
+          mkdir -p upstream/android/app/src/main/java/com/zun/th07
+          cp LauncherActivity.java \
+            upstream/android/app/src/main/java/com/zun/th07/LauncherActivity.java
+
+          mkdir -p upstream/android/app/src/main/res/mipmap-mdpi
+          cp ic_launcher.png \
+            upstream/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+      - name: Build APK
+        working-directory: upstream/android
+        run: |
+          chmod +x gradlew
+          ./gradlew -PTH_EXTERNAL_ASSETS assembleDebug --stacktrace
+
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          cp upstream/android/app/build/outputs/apk/debug/app-debug.apk \
+            dist/TH07-Android-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TH07-Android-APK
+          path: dist/TH07-Android-debug.apk
