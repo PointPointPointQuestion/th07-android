@@ -16,30 +16,38 @@ import android.widget.TextView;
 
 import org.libsdl.app.SDLActivity;
 
-/** TH07 Android v2.1 mobile controls. */
+/** TH07 Android v2.2 mobile controls and Practice+ tools. */
 public class PerfectCherryBlossom extends SDLActivity {
     private static final String PREFS = "th07_mobile_controls";
     private static final String PREF_FREE_MOVE = "free_move";
+    private static final String PREF_PRACTICE_INVINCIBLE = "practice_invincible";
 
     private MomentaryPad keyEsc;
     private TogglePad keyZ;
     private TogglePad keyS;
     private MomentaryPad keyX;
     private TextView moveMode;
+    private TogglePad practiceInv;
     private boolean freeMove = true;
+    private boolean practiceInvincible = false;
 
     private static native void nativeSetFreeMove(boolean enabled);
     private static native void nativeSetShotLatched(boolean enabled);
     private static native void nativeSetFocusLatched(boolean enabled);
+    private static native void nativeSetPracticeInvincible(boolean enabled);
+    private static native void nativeRequestPracticeNextPhase();
+    private static native void nativeRequestPracticeRetryPhase();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         freeMove = prefs.getBoolean(PREF_FREE_MOVE, true);
+        practiceInvincible = prefs.getBoolean(PREF_PRACTICE_INVINCIBLE, false);
         installMobileOverlay();
         pushMoveModeToNative();
         pushToggleStateToNative();
+        pushPracticeStateToNative();
     }
 
     @Override
@@ -47,6 +55,7 @@ public class PerfectCherryBlossom extends SDLActivity {
         super.onResume();
         pushMoveModeToNative();
         pushToggleStateToNative();
+        pushPracticeStateToNative();
     }
 
     @Override
@@ -106,6 +115,37 @@ public class PerfectCherryBlossom extends SDLActivity {
         moveLp.rightMargin = dp(18);
         moveLp.topMargin = dp(16);
         overlay.addView(moveMode, moveLp);
+
+        practiceInv = new TogglePad(this, "INV", 14f, enabled -> {
+            practiceInvincible = enabled;
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putBoolean(PREF_PRACTICE_INVINCIBLE, enabled).apply();
+            pushPracticeStateToNative();
+        });
+        practiceInv.setLatched(practiceInvincible);
+        FrameLayout.LayoutParams invLp = new FrameLayout.LayoutParams(dp(86), dp(50));
+        invLp.gravity = Gravity.TOP | Gravity.RIGHT;
+        invLp.rightMargin = dp(18);
+        invLp.topMargin = dp(74);
+        overlay.addView(practiceInv, invLp);
+
+        ActionPad nextPhase = new ActionPad(this, "NEXT\nPHASE", () -> {
+            try { nativeRequestPracticeNextPhase(); } catch (UnsatisfiedLinkError ignored) { }
+        });
+        FrameLayout.LayoutParams nextLp = new FrameLayout.LayoutParams(dp(86), dp(50));
+        nextLp.gravity = Gravity.TOP | Gravity.RIGHT;
+        nextLp.rightMargin = dp(18);
+        nextLp.topMargin = dp(132);
+        overlay.addView(nextPhase, nextLp);
+
+        ActionPad retryPhase = new ActionPad(this, "RETRY\nPHASE", () -> {
+            try { nativeRequestPracticeRetryPhase(); } catch (UnsatisfiedLinkError ignored) { }
+        });
+        FrameLayout.LayoutParams retryLp = new FrameLayout.LayoutParams(dp(86), dp(50));
+        retryLp.gravity = Gravity.TOP | Gravity.RIGHT;
+        retryLp.rightMargin = dp(18);
+        retryLp.topMargin = dp(190);
+        overlay.addView(retryPhase, retryLp);
     }
 
     private void addBottomLeftKey(FrameLayout overlay, View key, int bottomDp) {
@@ -127,6 +167,11 @@ public class PerfectCherryBlossom extends SDLActivity {
     private void pushToggleStateToNative() {
         nativeSetShotSafe(keyZ != null && keyZ.isLatched());
         nativeSetFocusSafe(keyS != null && keyS.isLatched());
+    }
+
+    private void pushPracticeStateToNative() {
+        try { nativeSetPracticeInvincible(practiceInvincible); }
+        catch (UnsatisfiedLinkError ignored) { }
     }
 
     private void nativeSetShotSafe(boolean enabled) {
@@ -194,6 +239,26 @@ public class PerfectCherryBlossom extends SDLActivity {
                     latched ? 0xAA245B2A : 0x88111111,
                     latched ? 0xFFFFFFFF : 0xD9FFFFFF,
                     dp(30), dp(1)));
+        }
+    }
+
+    private final class ActionPad extends TextView {
+        ActionPad(Context context, String label, Runnable action) {
+            super(context);
+            setText(label);
+            setTextSize(13f);
+            setTextColor(Color.WHITE);
+            setTypeface(Typeface.DEFAULT_BOLD);
+            setGravity(Gravity.CENTER);
+            setBackground(makeRoundedBackground(0x88111111, 0xD9FFFFFF, dp(18), dp(1)));
+            setClickable(true);
+            setFocusable(false);
+            setAlpha(0.78f);
+            setOnClickListener(v -> {
+                setAlpha(1.0f);
+                if (action != null) action.run();
+                postDelayed(() -> setAlpha(0.78f), 120);
+            });
         }
     }
 
