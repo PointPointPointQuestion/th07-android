@@ -52,6 +52,12 @@ bool g_BombPending = false;
 bool g_PausePending = false;
 bool g_BombedWithTouch = false;
 
+// v2.1 toggle controls.  Z and S are native latches rather than permanently
+// held Android keyboard keys.  This keeps them active during gameplay while
+// preventing a latched Z from selecting items when the main menu appears.
+bool g_ShotLatched = false;
+bool g_FocusLatched = false;
+
 // Default to direct/finger-following movement on mobile. The Android overlay
 // can toggle this at runtime through a tiny JNI bridge below.
 bool g_FreeMoveMode = true;
@@ -413,15 +419,46 @@ u16 Touch::GetButtonBits()
         }
     }
 
-    // Shooting/focus/bomb/pause are supplied by the explicit Android
-    // Z/S/X/ESC overlay in v2.  Keeping movement independent also makes
-    // simultaneous drag + focus + shot reliable.
+    // Z/S are persistent toggle latches, but only while actual gameplay is
+    // active. X/ESC remain momentary Android key events.
+    if (IsGameplayTouchMode())
+    {
+        if (g_ShotLatched)
+        {
+            buttons |= TH_BUTTON_SHOOT;
+        }
+        if (g_FocusLatched)
+        {
+            buttons |= TH_BUTTON_FOCUS;
+        }
+    }
+
     return buttons;
 }
 
 bool Touch::IsFocus()
 {
-    return g_FocusFinger.active;
+    return g_FocusLatched || g_FocusFinger.active;
+}
+
+void Touch::SetShotLatched(bool enabled)
+{
+    g_ShotLatched = enabled;
+}
+
+void Touch::SetFocusLatched(bool enabled)
+{
+    g_FocusLatched = enabled;
+}
+
+bool Touch::IsShotLatched()
+{
+    return g_ShotLatched;
+}
+
+bool Touch::IsFocusLatched()
+{
+    return g_FocusLatched;
 }
 
 bool Touch::IsFreeMove()
@@ -469,5 +506,17 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_zun_th07_PerfectCherryBlossom_nativeSetFreeMove(JNIEnv *, jclass, jboolean enabled)
 {
     Touch::SetFreeMove(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_zun_th07_PerfectCherryBlossom_nativeSetShotLatched(JNIEnv *, jclass, jboolean enabled)
+{
+    Touch::SetShotLatched(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_zun_th07_PerfectCherryBlossom_nativeSetFocusLatched(JNIEnv *, jclass, jboolean enabled)
+{
+    Touch::SetFocusLatched(enabled == JNI_TRUE);
 }
 #endif

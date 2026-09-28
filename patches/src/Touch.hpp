@@ -15,6 +15,13 @@ u16 GetButtonBits();
 
 bool IsFocus();
 
+// Toggle-style mobile controls. These latches are only emitted while gameplay
+// touch mode is active, so an enabled Z/S toggle cannot auto-select menu items.
+void SetShotLatched(bool enabled);
+void SetFocusLatched(bool enabled);
+bool IsShotLatched();
+bool IsFocusLatched();
+
 // Android mobile control mode. FREE applies the full touch delta each frame;
 // LIMIT preserves the original movement-speed cap.
 bool IsFreeMove();
