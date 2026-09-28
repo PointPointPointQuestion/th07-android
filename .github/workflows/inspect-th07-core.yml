@@ -1,0 +1,72 @@
+name: Collect TH07 core source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download TH07 source
+        run: |
+          git clone --recursive --depth 1 --branch reallyportable \
+            https://github.com/some100/th07.git upstream
+
+      - name: Collect non-vendored core source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p report/core
+
+          git -C upstream rev-parse HEAD > report/upstream-commit.txt
+
+          # Tree listing, excluding the very large third-party dependency tree.
+          find upstream \
+            -path 'upstream/.git' -prune -o \
+            -path 'upstream/vendored' -prune -o \
+            -type f -print | sort > report/core-files.txt
+
+          # Copy source/build text files from the actual TH07 project, not vendored libraries.
+          while IFS= read -r f; do
+            case "$f" in
+              *.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.inl|*.java|*.kt|*.xml|*.gradle|*.kts|*.cmake|*/CMakeLists.txt|*.md|*.txt)
+                mkdir -p "report/core/$(dirname "$f")"
+                cp "$f" "report/core/$f"
+                ;;
+            esac
+          done < report/core-files.txt
+
+          grep -RInE \
+            --exclude-dir=.git \
+            --exclude-dir=vendored \
+            'Touch::|FingerDown|FingerUp|FingerMotion|GetPlayerDelta|ConsumePlayerDelta|GetButtonBits|IsFocus|SDL_EVENT_FINGER|touch|finger' \
+            upstream > report/touch-core-hits.txt || true
+
+          grep -RInE \
+            --exclude-dir=.git \
+            --exclude-dir=vendored \
+            'score\.dat|WriteScore|OpenScore|ResultScreen|high.?score|replay|GetPrefPath|GetBasePath|WriteDataToFile' \
+            upstream > report/save-score-core-hits.txt || true
+
+          grep -RInE \
+            --exclude-dir=.git \
+            --exclude-dir=vendored \
+            'Practice|practice|OnUpdateSelectPracticeStage|DrawPracticeMenu|StagePractice' \
+            upstream > report/practice-core-hits.txt || true
+
+          # Keep the artifact small and easy to upload here.
+          tar -czf report/th07-core-source.tar.gz -C report/core .
+          rm -rf report/core
+
+      - name: Upload core source report
+        uses: actions/upload-artifact@v4
+        with:
+          name: TH07-core-source
+          path: report/
