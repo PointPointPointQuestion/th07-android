@@ -1,0 +1,101 @@
+name: Inspect TH07 v2 source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download TH07 source
+        run: |
+          git clone --recursive --depth 1 --branch reallyportable \
+            https://github.com/some100/th07.git upstream
+
+      - name: Collect source information
+        shell: bash
+        run: |
+          mkdir -p report/files
+
+          echo "TH07 reallyportable commit:" \
+            > report/upstream-commit.txt
+          git -C upstream rev-parse HEAD \
+            >> report/upstream-commit.txt
+
+          echo "=== Android files ===" \
+            > report/android-files.txt
+
+          find upstream/android -type f | sort \
+            >> report/android-files.txt || true
+
+          echo "=== TOUCH / INPUT MATCHES ===" \
+            > report/touch-hits.txt
+
+          grep -RInE \
+            --include='*.cpp' \
+            --include='*.cc' \
+            --include='*.c' \
+            --include='*.h' \
+            --include='*.hpp' \
+            --include='*.java' \
+            --include='*.kt' \
+            'SDL_EVENT_FINGER|FINGER_DOWN|FINGER_UP|FINGER_MOTION|SDL_GetTouch|touch|finger|tap|gesture|multitouch' \
+            upstream \
+            | head -n 800 \
+            >> report/touch-hits.txt || true
+
+          echo "=== SCORE / RESULT MATCHES ===" \
+            > report/score-hits.txt
+
+          grep -RInE \
+            --include='*.cpp' \
+            --include='*.cc' \
+            --include='*.c' \
+            --include='*.h' \
+            --include='*.hpp' \
+            --include='*.java' \
+            --include='*.kt' \
+            'score\.dat|scorefile|high.?score|score.*name|name.*score|result|Result' \
+            upstream \
+            | head -n 800 \
+            >> report/score-hits.txt || true
+
+          # 收集 Android 端文本源码
+          find upstream/android -type f \
+            \( -name '*.java' -o \
+               -name '*.kt' -o \
+               -name '*.xml' -o \
+               -name '*.gradle' -o \
+               -name '*.kts' -o \
+               -name '*.cpp' -o \
+               -name '*.c' -o \
+               -name '*.h' -o \
+               -name '*.hpp' \) \
+            -exec cp --parents '{}' report/files/ \; || true
+
+          # 收集触控和 Score 搜索命中的源码文件
+          cat report/touch-hits.txt report/score-hits.txt \
+            | grep '^upstream/' \
+            | cut -d: -f1 \
+            | sort -u \
+            | head -n 100 \
+            > report/candidate-files.txt || true
+
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              cp --parents "$file" report/files/
+            fi
+          done < report/candidate-files.txt
+
+      - name: Upload source report
+        uses: actions/upload-artifact@v4
+        with:
+          name: TH07-v2-source-report
+          path: report/
