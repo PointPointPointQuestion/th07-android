@@ -1,0 +1,7 @@
+upstream/
+dist/
+*.apk
+*.dat
+*.ttc
+*.rpy
+score.dat

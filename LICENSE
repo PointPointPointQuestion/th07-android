@@ -1,0 +1,4 @@
+Helper/patch files authored for this package are released under CC0-1.0 where applicable.
+This does not change the licensing/copyright status of Touhou Project, TH07 game data,
+upstream code, SDL, Android components, fonts, or any third-party files.
+The included development keystore is a disposable test key and is not a production secret.

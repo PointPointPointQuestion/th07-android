@@ -1,69 +1,68 @@
-# TH07 Android 云端构建包
+# TH07 Android v2 构建包
 
-这是一个**不需要安装 Android Studio**的 GitHub Actions 构建辅助工程。
+这是给已经能运行 `reallyportable` Android 版 TH07 的测试升级包。它不会包含 `th07.dat`、`thbgm.dat` 或 `msgothic.ttc`。
 
-它不会包含或上传《东方妖妖梦》的原版数据、音乐或字体。构建时会从公开的 `some100/th07` 仓库检出 `reallyportable` 分支，并使用该分支已有的 Android / SDL3 / OpenGL ES 支持来生成一个可安装的 Debug APK。
+## v2 已实际修改的内容
 
-## 你需要准备
+- 左上角半透明 `ESC`。
+- 左下角竖排 `Z / S / X`：
+  - `Z` = 射击 / 确认
+  - `S` = Focus（实际发送 Shift）
+  - `X` = Bomb / 返回
+- 取消游戏中的“拖动即自动射击”“第二指低速”“边缘 Bomb”“四指 ESC”逻辑，避免多点误触。
+- 右上角 `MOVE FREE / MOVE LIMIT`：
+  - `FREE` 默认：拖多少移动多少，不受原作每帧移动速度上限约束；按住 S 时仍降低触控位移，便于微操。
+  - `LIMIT`：保留上游原来的速度上限逻辑。
+  - 选择会保存到 Android SharedPreferences。
+- Android 存档不再跟外部 DAT 资源混在同一目录；`score.dat` / cfg / replay 使用 SDL 私有持久目录。
+- 保存改为临时文件写完再替换，并保留 `.bak`，降低异常退出损坏存档的概率。
+- 对空/损坏 `score.dat` 增加保护。
+- Android 的高分姓名输入暂时自动使用 `MOBILE` 并跳过原来的旧字节字符输入表；这是为了规避你报告的结算/记录界面闪退。高分与统计会立即写盘。
+- Practice 结束时也立即写入练习记录。
 
-- 一个 GitHub 账号；
-- 你合法拥有的《东方妖妖梦 ～ Perfect Cherry Blossom》日文版 1.00b 的：
-  - `th07.dat`
-  - `thbgm.dat`
-  - `msgothic.ttc`
+## 构建
 
-这些文件**不要上传到 GitHub**。
+1. 把本 ZIP **解压后的内容**上传到你的 GitHub 仓库根目录。
+2. 提交到 `main`。
+3. GitHub 顶部打开 **Actions**。
+4. 进入 **Build TH07 Android v2 APK**。
+5. 点 **Run workflow**（如果 push 后已经自动在跑，可以直接等）。
+6. 成功后，在运行页面底部下载 Artifact：`TH07-Android-v2-APK`。
+7. 解压 Artifact，安装 `TH07-Android-v2-debug.apk`。
 
-## 最简单的构建方法
+## 第一次从旧版升级时的重要说明
 
-1. 在 GitHub 新建一个空仓库，例如 `th07-android-build`。
-2. 把这个压缩包解压后的所有文件上传到仓库根目录，注意 `.github` 目录也要一起上传。
-3. 打开仓库顶部的 **Actions**。
-4. 选择 **Build TH07 Android APK**。
-5. 点 **Run workflow**。
-6. 构建成功后，在该次运行页面底部的 **Artifacts** 下载 `TH07-Android-APK`。
-7. 解压后得到 `TH07-Android-debug.apk`，传到手机安装。
+这个构建包开始使用一个固定的开发签名，让**今后的 v2 测试包可以互相覆盖安装**。
+但你之前 GitHub Actions 生成的旧 APK 很可能使用了另一个临时 Debug 签名。因此 Android 若提示“无法安装/签名不一致”，需要先卸载旧版再安装 v2。
 
-> 第一次安装第三方 APK 时，Android 可能要求你允许浏览器/文件管理器“安装未知应用”。
+卸载应用通常会删除应用自己的资源目录，所以请确保手机其他位置仍保留你自己的：
 
-## 第一次启动
+- `th07.dat`
+- `thbgm.dat`
+- `msgothic.ttc`
 
-APK 打开后会先出现资源导入页面。依次选择：
+然后用启动页重新导入即可。不要把这些文件上传到公开 GitHub。
 
-1. `th07.dat`
-2. `thbgm.dat`
-3. `msgothic.ttc`
+## 测试重点
 
-三个文件导入成功后，“启动游戏”按钮才会启用。
+请优先测试：
 
-导入采用 Android 系统文件选择器，不需要手动进入受限制的 `Android/data` 目录，也不需要存储权限。
+1. 拖动 + 按住 Z 是否能同时工作。
+2. 拖动 + Z + S 是否能同时工作。
+3. X 是否可靠放 Bomb。
+4. ESC 是否能正常暂停/返回。
+5. FREE/LIMIT 切换是否立即生效，并在重启后保留。
+6. 打完一局进入结算时是否还闪退。
+7. 回到标题后退出应用，再打开，看 High Score / 通关与符卡记录是否保留。
+8. Practice 打完后退出重进，看 Practice Score 是否保留。
 
-## 触屏操作
+## 当前未包含
 
-`reallyportable` 分支本身已经实现触屏：
+- 中文化（计划在存档/触控稳定后做）。
+- THPrac 风格 Custom Practice（需要单独改菜单和关卡内部状态，暂未塞进 v2，以免同时引入太多变量）。
 
-- 菜单：滑动移动光标，单击确认，双指点击返回；
-- 游戏：手指拖动控制自机；
-- 移动时再按住另一根手指：低速 / Focus；
-- 点击画面两侧黑边或左下角：Bomb；
-- 游戏区域内四指按住：暂停；
-- 长按约 0.5 秒：跳过对话。
+## 上游版本
 
-## 注意
+本构建固定到你提供源码报告对应的 commit：
 
-- APK 使用上游 `reallyportable` 分支，属于社区移植，不是 Team Shanghai Alice / ZUN 官方 Android 版。
-- 本工程只提供构建脚本、资源导入启动器和原创占位图标，不分发原作素材。
-- 当前工作流构建的是 Debug APK，因此 Android 会使用标准 Debug 签名；适合个人安装测试。
-- 上游目前注明文字渲染可能与原版略有差异，部分旧功能（例如 MIDI）未实现。
-
-## 上游
-
-- `some100/th07` — `reallyportable` branch
-- SDL3 / SDL3_image / SDL3_ttf 由上游仓库作为子模块/依赖处理
-
-## 本辅助工程内容
-
-- `.github/workflows/build-apk.yml`：GitHub 云端自动构建 APK
-- `LauncherActivity.java`：资源导入页
-- `AndroidManifest.xml`：把资源导入页设为启动页
-- `ic_launcher.png`：不使用原作图像的占位图标
+`5412dc42f25951de96d0b094b97fb916652ea1bf`
