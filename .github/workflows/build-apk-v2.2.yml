@@ -1,0 +1,103 @@
+name: Build TH07 Android v2.2 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout helper repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358" \
+            "cmake;3.22.1"
+
+      - name: Fetch pinned TH07 source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --no-checkout https://github.com/some100/th07.git upstream
+          cd upstream
+          git fetch --depth=1 origin 5412dc42f25951de96d0b094b97fb916652ea1bf
+          git checkout --detach 5412dc42f25951de96d0b094b97fb916652ea1bf
+          git submodule update --init --recursive --depth 1
+
+      - name: Apply v2 source patches
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp patches/src/Touch.cpp upstream/src/Touch.cpp
+          cp patches/src/Touch.hpp upstream/src/Touch.hpp
+          cp patches/src/Player.cpp upstream/src/Player.cpp
+          cp patches/src/FileSystem.cpp upstream/src/FileSystem.cpp
+          cp patches/src/ResultScreen.cpp upstream/src/ResultScreen.cpp
+          cp patches/src/MainMenu.cpp upstream/src/MainMenu.cpp
+          cp patches/src/Supervisor.cpp upstream/src/Supervisor.cpp
+          cp patches/src/EnemyManager.cpp upstream/src/EnemyManager.cpp
+          cp patches/src/EnemyManager.hpp upstream/src/EnemyManager.hpp
+          cp patches/src/GameManager.cpp upstream/src/GameManager.cpp
+
+          cp patches/app/build.gradle upstream/android/app/build.gradle
+          cp patches/app/src/main/AndroidManifest.xml upstream/android/app/src/main/AndroidManifest.xml
+
+          mkdir -p upstream/android/app/src/main/java/com/zun/th07
+          cp patches/app/src/main/java/com/zun/th07/LauncherActivity.java \
+            upstream/android/app/src/main/java/com/zun/th07/LauncherActivity.java
+          cp patches/app/src/main/java/com/zun/th07/PerfectCherryBlossom.java \
+            upstream/android/app/src/main/java/com/zun/th07/PerfectCherryBlossom.java
+
+          mkdir -p upstream/android/app/src/main/res/mipmap-mdpi
+          cp patches/app/src/main/res/mipmap-mdpi/ic_launcher.png \
+            upstream/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+          cp patches/th07-v2-dev.keystore upstream/android/app/th07-v2-dev.keystore
+
+      - name: Build v2 APK
+        working-directory: upstream/android
+        shell: bash
+        run: |
+          set -euxo pipefail
+          chmod +x gradlew
+          ./gradlew -PTH_EXTERNAL_ASSETS assembleDebug --stacktrace
+
+      - name: Collect APK and checksum
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          cp upstream/android/app/build/outputs/apk/debug/app-debug.apk \
+            dist/TH07-Android-v2.2-debug.apk
+          sha256sum dist/TH07-Android-v2.2-debug.apk > dist/SHA256SUMS.txt
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TH07-Android-v2.2-APK
+          path: dist/
+          if-no-files-found: error
