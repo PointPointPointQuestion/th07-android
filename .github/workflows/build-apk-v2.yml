@@ -1,4 +1,4 @@
-name: Build TH07 Android v2 APK
+name: Build TH07 Android v2.1 APK
 
 on:
   workflow_dispatch:
@@ -57,6 +57,8 @@ jobs:
           cp patches/src/Player.cpp upstream/src/Player.cpp
           cp patches/src/FileSystem.cpp upstream/src/FileSystem.cpp
           cp patches/src/ResultScreen.cpp upstream/src/ResultScreen.cpp
+          cp patches/src/MainMenu.cpp upstream/src/MainMenu.cpp
+          cp patches/src/Supervisor.cpp upstream/src/Supervisor.cpp
 
           cp patches/app/build.gradle upstream/android/app/build.gradle
           cp patches/app/src/main/AndroidManifest.xml upstream/android/app/src/main/AndroidManifest.xml
@@ -87,12 +89,12 @@ jobs:
           set -euxo pipefail
           mkdir -p dist
           cp upstream/android/app/build/outputs/apk/debug/app-debug.apk \
-            dist/TH07-Android-v2-debug.apk
-          sha256sum dist/TH07-Android-v2-debug.apk > dist/SHA256SUMS.txt
+            dist/TH07-Android-v2.1-debug.apk
+          sha256sum dist/TH07-Android-v2.1-debug.apk > dist/SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: TH07-Android-v2-APK
+          name: TH07-Android-v2.1-APK
           path: dist/
           if-no-files-found: error
