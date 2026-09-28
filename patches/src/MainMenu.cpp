@@ -29,8 +29,8 @@ const char *g_DemoReplayPaths[3] = {
     "data/demo/demorpy2.rpy",
 };
 
-const char *g_StagePracticeStrings[6] = {
-    "Stage1", "Stage2", "Stage3", "Stage4", "Stage5", "Stage6",
+const char *g_StagePracticeStrings[7] = {
+    "Stage1", "Stage2", "Stage3", "Stage4", "Stage5", "Stage6", "Extra ",
 };
 
 const char *g_StageReplayStrings[7] = {
@@ -207,10 +207,12 @@ u32 MainMenu::OnUpdatePreInput()
         i = MoveCursorVertical(ARRAY_SIZE_SIGNED(g_MainMenuStrings));
         if (i != 0)
         {
+#if !defined(__ANDROID__)
             while (g_GameManager.HasReachedMaxClearsAnyShotType() == 0 && this->cursor == 1)
             {
                 this->cursor += i;
             }
+#endif
             for (i = 0; i < ARRAY_SIZE_SIGNED(g_MainMenuStrings); i++)
             {
                 g_AnmManager->SetActiveSprite(&this->vms[i + 1],
@@ -311,7 +313,13 @@ u32 MainMenu::OnUpdatePreInput()
                 this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE;
             case MENU_CURSOR_PREINPUT_EXTRA_START:
+#if defined(__ANDROID__)
+                // Mobile Practice+: keep Extra available even when score.dat unlock
+                // history is missing or the player has not cleared the main game yet.
+                if (true)
+#else
                 if (g_GameManager.HasReachedMaxClearsAnyShotType())
+#endif
                 {
                     g_GameManager.practice = 0;
                     this->cursor = g_Supervisor.cfg.defaultDifficulty == 5;
@@ -1204,6 +1212,7 @@ u32 MainMenu::OnUpdateSelectCharacter()
             this->cursor = g_GameManager.character;
             if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
+#if !defined(__ANDROID__)
                 while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2) &&
                        !g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2 + 1))
                 {
@@ -1213,6 +1222,7 @@ u32 MainMenu::OnUpdateSelectCharacter()
                         this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
+#endif
             }
             else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
@@ -1338,6 +1348,7 @@ u32 MainMenu::OnUpdateSelectCharacter()
         {
             if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
+#if !defined(__ANDROID__)
                 while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2) &&
                        !g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2 + 1))
                 {
@@ -1347,6 +1358,7 @@ u32 MainMenu::OnUpdateSelectCharacter()
                         this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
+#endif
             }
             else if (g_Supervisor.cfg.defaultDifficulty == 5)
             {
@@ -1507,6 +1519,7 @@ u32 MainMenu::OnUpdateSelectShotType()
             this->cursor = g_GameManager.shotType;
             if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
+#if !defined(__ANDROID__)
                 while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(
                     this->cursor + (u32)g_GameManager.character * 2))
                 {
@@ -1516,6 +1529,7 @@ u32 MainMenu::OnUpdateSelectShotType()
                         this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
+#endif
             }
             else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
@@ -1579,6 +1593,7 @@ u32 MainMenu::OnUpdateSelectShotType()
         {
             if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
+#if !defined(__ANDROID__)
                 while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(
                     this->cursor + (u32)g_GameManager.character * 2))
                 {
@@ -1588,6 +1603,7 @@ u32 MainMenu::OnUpdateSelectShotType()
                         this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
+#endif
             }
             else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
@@ -1749,8 +1765,8 @@ u32 MainMenu::OnUpdateSelectPracticeStage()
     case MENU_SUBSTATE_SELECT_INPUT:
 #if defined(__ANDROID__)
         // Mobile Practice+: do not depend on score.dat unlock history.
-        // All six main-game stages are selectable immediately.
-        allowedStages = 6;
+        // All six main-game stages plus Extra are selectable immediately.
+        allowedStages = 7;
 #else
         allowedStages = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
                             .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
@@ -1771,8 +1787,22 @@ u32 MainMenu::OnUpdateSelectPracticeStage()
         if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
+#if defined(__ANDROID__)
+            if (this->cursor == 6)
+            {
+                // GameManager increments currentStage during stage setup.
+                g_GameManager.difficulty = DIFF_EXTRA;
+                g_GameManager.currentStage = EXTRASTAGE - 1;
+            }
+            else
+            {
+                g_GameManager.difficulty = g_Supervisor.cfg.defaultDifficulty;
+                g_GameManager.currentStage = this->cursor;
+            }
+#else
             g_GameManager.difficulty = g_Supervisor.cfg.defaultDifficulty;
             g_GameManager.currentStage = this->cursor;
+#endif
             g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
 
             i32 idk = 0;
@@ -2191,7 +2221,7 @@ i32 MainMenu::DrawPracticeMenu()
     textPos = vm->pos;
     textPos.y += 16.0f;
 #if defined(__ANDROID__)
-    cleared = 6;
+    cleared = 7;
 #else
     cleared = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
                   .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
@@ -2212,16 +2242,25 @@ i32 MainMenu::DrawPracticeMenu()
         {
             g_AsciiManager.color = 0xff404040;
         }
-        AsciiManager::AddFormatText(&g_AsciiManager, &textPos, "%s %9d0 (%3d)",
-                                    g_StagePracticeStrings[i],
-                                    g_GameManager
-                                        .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
-                                             [i][g_Supervisor.cfg.defaultDifficulty]
-                                        .score,
-                                    g_GameManager
-                                        .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
-                                             [i][g_Supervisor.cfg.defaultDifficulty]
-                                        .playCount);
+#if defined(__ANDROID__)
+        if (i == 6)
+        {
+            AsciiManager::AddFormatText(&g_AsciiManager, &textPos, "%s   Practice+", g_StagePracticeStrings[i]);
+        }
+        else
+#endif
+        {
+            AsciiManager::AddFormatText(&g_AsciiManager, &textPos, "%s %9d0 (%3d)",
+                                        g_StagePracticeStrings[i],
+                                        g_GameManager
+                                            .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
+                                                 [i][g_Supervisor.cfg.defaultDifficulty]
+                                            .score,
+                                        g_GameManager
+                                            .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
+                                                 [i][g_Supervisor.cfg.defaultDifficulty]
+                                            .playCount);
+        }
         textPos.y += 16.0f;
     }
     g_AsciiManager.color = 0xffffffff;

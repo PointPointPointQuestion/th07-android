@@ -27,6 +27,18 @@ bool IsFocusLatched();
 bool IsFreeMove();
 void SetFreeMove(bool enabled);
 
+
+// Practice+ mobile helpers. JNI only posts requests; the game thread consumes
+// them from EnemyManager::OnUpdate so boss/ECL state is never mutated from the
+// Android UI thread.
+void SetPracticeInvincible(bool enabled);
+bool IsPracticeInvincible();
+
+void RequestPracticeNextPhase();
+void RequestPracticeRetryPhase();
+bool ConsumePracticeNextPhaseRequest();
+bool ConsumePracticeRetryPhaseRequest();
+
 bool GetPlayerDelta(f32 *dx, f32 *dy);
 void SetPlayerDelta(f32 dx, f32 dy);
 void ConsumePlayerDelta(f32 dx, f32 dy);

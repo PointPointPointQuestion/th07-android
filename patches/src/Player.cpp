@@ -982,6 +982,13 @@ i32 Player::CalcKillboxCollision(ZunVec3 *center, ZunVec3 *size)
         return PLAYER_COLLISION_BOMB;
     }
 
+#if defined(__ANDROID__)
+    if (g_GameManager.practice && Touch::IsPracticeInvincible())
+    {
+        return PLAYER_COLLISION_NONE;
+    }
+#endif
+
     killboxTopLeft.x = center->x - size->x / 2.0f;
     killboxTopLeft.y = center->y - size->y / 2.0f;
     killboxBottomRight.x = center->x + size->x / 2.0f;
@@ -1117,6 +1124,12 @@ i32 Player::CalcLaserHitbox(ZunVec3 *center, ZunVec3 *size, ZunVec3 *origin, f32
     return PLAYER_COLLISION_BOMB;
 
 LASER_COLLISION:
+#if defined(__ANDROID__)
+    if (g_GameManager.practice && Touch::IsPracticeInvincible())
+    {
+        return PLAYER_COLLISION_NONE;
+    }
+#endif
     g_ReplayManager->replayEventFlags = g_ReplayManager->replayEventFlags | 2;
     if (this->playerState == PLAYER_STATE_BORDER)
     {

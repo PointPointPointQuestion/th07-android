@@ -62,6 +62,10 @@ bool g_FocusLatched = false;
 // can toggle this at runtime through a tiny JNI bridge below.
 bool g_FreeMoveMode = true;
 
+bool g_PracticeInvincible = false;
+bool g_PracticeNextPhasePending = false;
+bool g_PracticeRetryPhasePending = false;
+
 bool IsGameplayTouchMode()
 {
     return g_GameManager.notInMenu && !g_GameManager.isInPauseMenu &&
@@ -474,6 +478,40 @@ void Touch::SetFreeMove(bool enabled)
     g_AccumDy = 0.0f;
 }
 
+void Touch::SetPracticeInvincible(bool enabled)
+{
+    g_PracticeInvincible = enabled;
+}
+
+bool Touch::IsPracticeInvincible()
+{
+    return g_PracticeInvincible;
+}
+
+void Touch::RequestPracticeNextPhase()
+{
+    g_PracticeNextPhasePending = true;
+}
+
+void Touch::RequestPracticeRetryPhase()
+{
+    g_PracticeRetryPhasePending = true;
+}
+
+bool Touch::ConsumePracticeNextPhaseRequest()
+{
+    bool pending = g_PracticeNextPhasePending;
+    g_PracticeNextPhasePending = false;
+    return pending;
+}
+
+bool Touch::ConsumePracticeRetryPhaseRequest()
+{
+    bool pending = g_PracticeRetryPhasePending;
+    g_PracticeRetryPhasePending = false;
+    return pending;
+}
+
 bool Touch::GetPlayerDelta(f32 *dx, f32 *dy)
 {
     if (!g_MoveFinger.active)
@@ -518,5 +556,23 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_zun_th07_PerfectCherryBlossom_nativeSetFocusLatched(JNIEnv *, jclass, jboolean enabled)
 {
     Touch::SetFocusLatched(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_zun_th07_PerfectCherryBlossom_nativeSetPracticeInvincible(JNIEnv *, jclass, jboolean enabled)
+{
+    Touch::SetPracticeInvincible(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_zun_th07_PerfectCherryBlossom_nativeRequestPracticeNextPhase(JNIEnv *, jclass)
+{
+    Touch::RequestPracticeNextPhase();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_zun_th07_PerfectCherryBlossom_nativeRequestPracticeRetryPhase(JNIEnv *, jclass)
+{
+    Touch::RequestPracticeRetryPhase();
 }
 #endif
